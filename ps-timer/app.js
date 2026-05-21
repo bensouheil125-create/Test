@@ -217,13 +217,13 @@ function extendTime(timer, minutes) {
 // Adjust elapsed time (+ or -) with price adjustment
 function adjustTime(timer, minutes) {
   const seconds = minutes * 60;
+  const wasRunning = timer.status === 'running';
   
-  // If running, accumulate elapsed without triggering render
-  if (timer.status === 'running' && timer.lastStartedAt) {
+  // If running, snapshot elapsed so we can adjust it
+  if (wasRunning && timer.lastStartedAt) {
     const elapsed = (Date.now() - timer.lastStartedAt) / 1000;
     timer.accumulatedElapsed += elapsed;
-    timer.lastStartedAt = null;
-    timer.status = 'paused';
+    timer.lastStartedAt = Date.now(); // Reset reference point, keep running
   }
   
   const newElapsed = Math.max(0, timer.accumulatedElapsed + seconds);
@@ -236,6 +236,7 @@ function adjustTime(timer, minutes) {
     if (getPrice(timer) < 0) timer.priceOffset = -(timer.accumulatedElapsed * PRICE_PER_SECOND);
   }
   
+  // Timer stays running - no pause!
   saveState();
   render();
 }
@@ -851,8 +852,14 @@ function init() {
   // Start update loop - 500ms is smooth enough without causing flicker
   intervalId = setInterval(tick, 500);
   
-  // Save state periodically
-  setInterval(saveState, 5000);
+  // Save state every 2 seconds for power loss protection
+  setInterval(saveState, 2000);
+  
+  // Save immediately when page is closing (power off, tab close, etc.)
+  window.addEventListener('beforeunload', () => {
+    saveState();
+    saveRevenue();
+  });
   
   // Handle visibility change - recalculate on return
   document.addEventListener('visibilitychange', () => {
@@ -860,6 +867,9 @@ function init() {
       // Recalculate elapsed times when user returns
       loadState();
       render();
+    } else {
+      // Save when user switches away
+      saveState();
     }
   });
 }
