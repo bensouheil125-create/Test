@@ -476,22 +476,23 @@ function formatPrice(price) {
   return price.toFixed(2) + ' دج';
 }
 
-function startTimer(timer) {
+function startTimer(timer, skipRender) {
   if (timer.status === 'running') return;
+  timer.finished = false; // clear finished state
   timer.status = 'running';
   timer.lastStartedAt = Date.now();
   saveState();
-  render();
+  if (!skipRender) render();
 }
 
-function pauseTimer(timer) {
+function pauseTimer(timer, skipRender) {
   if (timer.status !== 'running') return;
   const elapsed = (Date.now() - timer.lastStartedAt) / 1000;
   timer.accumulatedElapsed += elapsed;
   timer.lastStartedAt = null;
   timer.status = 'paused';
   saveState();
-  render();
+  if (!skipRender) render();
 }
 
 function resetTimer(timer) {
@@ -525,8 +526,8 @@ function deleteTimer(timerId) {
   }
 }
 
-function startAll() { timers.forEach(t => startTimer(t)); }
-function pauseAll() { timers.forEach(t => pauseTimer(t)); }
+function startAll() { timers.forEach(t => startTimer(t, true)); render(); }
+function pauseAll() { timers.forEach(t => pauseTimer(t, true)); render(); }
 function resetAll() { timers.forEach(t => resetTimer(t)); }
 function deleteAll() {
   timers.forEach(t => {
@@ -552,10 +553,13 @@ function extendTime(timer, minutes) {
 // Adjust elapsed time (+ or -) with price adjustment
 function adjustTime(timer, minutes) {
   const seconds = minutes * 60;
-  const currentElapsed = getElapsed(timer);
   
-  if (timer.status === 'running') {
-    pauseTimer(timer);
+  // If running, accumulate elapsed without triggering render
+  if (timer.status === 'running' && timer.lastStartedAt) {
+    const elapsed = (Date.now() - timer.lastStartedAt) / 1000;
+    timer.accumulatedElapsed += elapsed;
+    timer.lastStartedAt = null;
+    timer.status = 'paused';
   }
   
   const newElapsed = Math.max(0, timer.accumulatedElapsed + seconds);
@@ -703,6 +707,7 @@ function handleDragEnd(e) {
 
 // ==================== RENDER ====================
 function render() {
+  isRendering = true;
   applySettings();
   const app = document.getElementById('app');
   
@@ -745,6 +750,9 @@ function render() {
     const overlay = document.getElementById('bg-overlay');
     if (overlay) overlay.style.backgroundImage = `url(${settings.bgImage})`;
   }
+  
+  // Allow tick to run again after DOM is stable
+  setTimeout(() => { isRendering = false; }, 50);
 }
 
 function renderTimers() {
@@ -1123,7 +1131,12 @@ function confirmCountdown() {
 }
 
 // ==================== MAIN LOOP ====================
+let isRendering = false;
+
 function tick() {
+  if (isRendering) return; // Skip tick during full render
+  if (currentTab !== 'timers') return; // Only update timer tab
+  
   checkCountdowns();
   
   // Update display without full re-render (performance)
@@ -1171,8 +1184,8 @@ function init() {
   loadRevenue();
   render();
   
-  // Start update loop
-  intervalId = setInterval(tick, 100);
+  // Start update loop - 500ms is smooth enough without causing flicker
+  intervalId = setInterval(tick, 500);
   
   // Save state periodically
   setInterval(saveState, 5000);
