@@ -322,6 +322,7 @@ function playAlarm(timerName, ringtone) {
 
 // ==================== CHECK COUNTDOWN FINISH ====================
 function checkCountdowns() {
+  let needsRender = false;
   timers.forEach(timer => {
     if (timer.type === 'countdown' && timer.status === 'running') {
       const elapsed = getElapsed(timer);
@@ -331,10 +332,14 @@ function checkCountdowns() {
         timer.status = 'stopped';
         timer.finished = true;
         playAlarm(timer.name, settings.ringtone);
-        saveState();
+        needsRender = true;
       }
     }
   });
+  if (needsRender) {
+    saveState();
+    render();
+  }
 }
 
 // ==================== DRAG & DROP ====================
@@ -450,7 +455,9 @@ function renderTimers() {
       <div class="card-header">
         <input class="timer-name" value="${timer.name}" 
                onchange="renameTimer('${timer.id}', this.value)"
-               onclick="this.select()">
+               oninput="renameTimer('${timer.id}', this.value)"
+               onclick="this.select()"
+               placeholder="اسم العداد">
         <span class="timer-type-badge">${timer.type === 'countdown' ? '⏳' : '⏱️'} ${timer.type}</span>
       </div>
       <div class="timer-display">${displayTime}</div>
@@ -804,7 +811,7 @@ function tick() {
   
   checkCountdowns();
   
-  // Update display without full re-render (performance)
+  // Update ONLY text content - never change classes or structure
   const displays = document.querySelectorAll('.timer-card');
   timers.forEach((timer, i) => {
     if (displays[i]) {
@@ -818,12 +825,6 @@ function tick() {
       const priceEl = displays[i].querySelector('.timer-price');
       if (timeEl) timeEl.textContent = displayTime;
       if (priceEl) priceEl.textContent = formatPrice(price);
-      
-      // Update card states
-      const isRunning = timer.status === 'running';
-      const isFinished = timer.type === 'countdown' && timer.finished && timer.status === 'stopped';
-      displays[i].classList.toggle('running', isRunning);
-      displays[i].classList.toggle('finished', isFinished);
     }
   });
   
