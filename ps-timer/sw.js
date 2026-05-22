@@ -1,8 +1,9 @@
 // Service Worker for PS Multi Timer - Offline Support
-const CACHE_NAME = 'ps-timer-v1';
+const CACHE_NAME = 'ps-timer-v2';
 const urlsToCache = [
   './',
-  './PS-Timer.html'
+  './PS-Timer.html',
+  './manifest.json'
 ];
 
 self.addEventListener('install', event => {

@@ -170,6 +170,18 @@ body {
   display: flex; gap: 4px; justify-content: center;
   flex-wrap: wrap; margin-top: 6px;
 }
+.countdown-edit {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; color: var(--text-dim); font-size: 0.78em;
+}
+.countdown-edit input {
+  width: 74px; padding: 5px 6px; border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text); text-align: center;
+}
 .delete-single {
   position: absolute; top: 8px; left: 8px;
   width: 24px; height: 24px; border-radius: 50%;
@@ -287,6 +299,57 @@ body {
   display: flex; align-items: center;
   justify-content: space-between; margin-bottom: 12px;
 }
+.revenue-panel { max-width: 1280px; margin: 0 auto; }
+.revenue-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 16px 0 10px;
+}
+.calendar-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.calendar-grid-weeks {
+  grid-template-columns: 44px repeat(7, minmax(58px, 1fr));
+  overflow-x: auto;
+}
+.cal-week-num {
+  min-height: 58px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: rgba(255,255,255,0.06);
+  color: var(--accent); font-weight: 700; font-size: 0.82em;
+}
+.cal-day { min-height: 58px; }
+.cal-empty { visibility: hidden; }
+.cal-day.selected { outline: 2px solid var(--warning); }
+.cal-day .day-amount.muted { color: var(--text-dim); opacity: 0.55; }
+.revenue-totals {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.revenue-totals .summary-row {
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 10px;
+  background: rgba(255,255,255,0.03);
+}
+.side-detail { position: sticky; bottom: 10px; }
+.month-list h4, .month-summary h4 { color: var(--accent); margin-bottom: 10px; }
+.revenue-list-row {
+  width: 100%; display: flex; justify-content: space-between;
+  padding: 9px 4px; border: none; border-bottom: 1px solid var(--card-border);
+  background: transparent; color: var(--text); cursor: pointer;
+  font: inherit; text-align: inherit;
+}
+.revenue-list-row:hover { color: var(--accent); }
+.revenue-list-row.compact { padding: 6px 4px; font-size: 0.88em; }
+.week-card {
+  border: 1px solid var(--card-border); border-radius: 10px;
+  padding: 10px; margin-bottom: 10px; background: rgba(255,255,255,0.03);
+}
+.month-total {
+  position: sticky; bottom: 0;
+  background: var(--card-bg); padding: 12px 0 4px;
+  margin-top: 8px;
+}
 /* Countdown setup modal */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 300;
@@ -318,4 +381,8 @@ body {
   .timers-grid { padding: 10px; gap: 10px; }
   .header { padding: 10px 12px; }
   .timer-display { font-size: calc(1.6em * var(--font-size-multiplier)); }
+  .revenue-totals { grid-template-columns: 1fr; }
+  .cal-nav { flex-wrap: wrap; gap: 8px; }
+  .calendar-grid-weeks { grid-template-columns: 36px repeat(7, minmax(48px, 1fr)); }
+  .cal-day, .cal-week-num { min-height: 48px; }
 }

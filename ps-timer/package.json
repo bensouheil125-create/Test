@@ -31,7 +31,9 @@
     },
     "files": [
       "main.js",
-      "PS-Timer.html"
+      "PS-Timer.html",
+      "manifest.json",
+      "sw.js"
     ]
   }
 }
