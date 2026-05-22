@@ -105,21 +105,15 @@ body {
 }
 .timer-card {
   background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  border: 2px solid var(--card-border);
   border-radius: 12px; padding: 16px;
-  transition: all 0.3s; position: relative;
-  cursor: grab;
+  position: relative; cursor: grab;
 }
 .timer-card:hover { border-color: var(--accent); }
 .timer-card.running { border-color: var(--success); box-shadow: 0 0 15px rgba(46,213,115,0.2); }
 .timer-card.finished {
   border-color: var(--danger);
-  animation: blink 1s infinite;
-  background: rgba(255,71,87,0.1);
-}
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  background: rgba(255,71,87,0.15);
 }
 .timer-card.dragging { opacity: 0.5; cursor: grabbing; }
 .timer-card.drag-over { border-color: var(--warning); border-style: dashed; }
@@ -130,12 +124,19 @@ body {
 .timer-name {
   font-size: calc(var(--ps-font-size) * var(--font-size-multiplier));
   font-weight: 700; color: var(--accent);
-  cursor: pointer; border: none; background: none;
+  cursor: text; border: none; background: none;
   font-family: inherit; outline: none; width: auto;
-  min-width: 60px;
+  min-width: 60px; max-width: 150px;
+  border-bottom: 1px dashed rgba(255,255,255,0.2);
+  padding: 2px 4px;
+}
+.timer-name:hover {
+  border-bottom: 1px dashed var(--accent);
 }
 .timer-name:focus {
   border-bottom: 2px solid var(--accent);
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
 }
 .timer-type-badge {
   font-size: 0.7em; padding: 2px 8px;

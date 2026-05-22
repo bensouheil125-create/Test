@@ -141,24 +141,24 @@ function formatPrice(price) {
   return price.toFixed(2) + ' دج';
 }
 
-function startTimer(timer) {
+function startTimer(timer, skipRender) {
   if (timer.status === 'running') return;
-  if (timer.type === 'countdown' && getElapsed(timer) >= timer.initialDuration) return;
+  timer.finished = false; // clear finished state
   timer.status = 'running';
   timer.finished = false;
   timer.lastStartedAt = Date.now();
   saveState();
-  render();
+  if (!skipRender) render();
 }
 
-function pauseTimer(timer) {
+function pauseTimer(timer, skipRender) {
   if (timer.status !== 'running') return;
   const elapsed = (Date.now() - timer.lastStartedAt) / 1000;
   timer.accumulatedElapsed += elapsed;
   timer.lastStartedAt = null;
   timer.status = 'paused';
   saveState();
-  render();
+  if (!skipRender) render();
 }
 
 function resetTimer(timer) {
@@ -193,8 +193,8 @@ function deleteTimer(timerId) {
   }
 }
 
-function startAll() { timers.forEach(t => startTimer(t)); }
-function pauseAll() { timers.forEach(t => pauseTimer(t)); }
+function startAll() { timers.forEach(t => startTimer(t, true)); render(); }
+function pauseAll() { timers.forEach(t => pauseTimer(t, true)); render(); }
 function resetAll() { timers.forEach(t => resetTimer(t)); }
 function deleteAll() {
   timers.forEach(t => {
@@ -225,15 +225,25 @@ function commitRunningElapsed(timer) {
 // Adjust elapsed time (+ or -) with price adjustment
 function adjustTime(timer, minutes) {
   const seconds = minutes * 60;
-  commitRunningElapsed(timer);
-  const maxElapsed = timer.type === 'countdown' ? timer.initialDuration : Infinity;
-  const newElapsed = Math.min(maxElapsed, Math.max(0, timer.accumulatedElapsed + seconds));
+  const wasRunning = timer.status === 'running';
+  
+  // If running, snapshot elapsed so we can adjust it
+  if (wasRunning && timer.lastStartedAt) {
+    const elapsed = (Date.now() - timer.lastStartedAt) / 1000;
+    timer.accumulatedElapsed += elapsed;
+    timer.lastStartedAt = Date.now(); // Reset reference point, keep running
+  }
+  
+  const newElapsed = Math.max(0, timer.accumulatedElapsed + seconds);
+  const diff = newElapsed - timer.accumulatedElapsed;
   timer.accumulatedElapsed = newElapsed;
   timer.finished = timer.type === 'countdown' && newElapsed >= timer.initialDuration;
   if (timer.finished) {
     timer.status = 'stopped';
     timer.lastStartedAt = null;
   }
+  
+  // Timer stays running - no pause!
   saveState();
   render();
 }
@@ -349,6 +359,7 @@ function playAlarm(timerName, ringtone) {
 
 // ==================== CHECK COUNTDOWN FINISH ====================
 function checkCountdowns() {
+  let needsRender = false;
   timers.forEach(timer => {
     if (timer.type === 'countdown' && timer.status === 'running') {
       const elapsed = getElapsed(timer);
@@ -358,10 +369,14 @@ function checkCountdowns() {
         timer.status = 'stopped';
         timer.finished = true;
         playAlarm(timer.name, settings.ringtone);
-        saveState();
+        needsRender = true;
       }
     }
   });
+  if (needsRender) {
+    saveState();
+    render();
+  }
 }
 
 // ==================== DRAG & DROP ====================
@@ -399,6 +414,7 @@ function handleDragEnd(e) {
 
 // ==================== RENDER ====================
 function render() {
+  isRendering = true;
   applySettings();
   const app = document.getElementById('app');
   
@@ -441,6 +457,9 @@ function render() {
     const overlay = document.getElementById('bg-overlay');
     if (overlay) overlay.style.backgroundImage = `url(${settings.bgImage})`;
   }
+  
+  // Allow tick to run again after DOM is stable
+  setTimeout(() => { isRendering = false; }, 50);
 }
 
 function renderTimers() {
@@ -473,7 +492,9 @@ function renderTimers() {
       <div class="card-header">
         <input class="timer-name" value="${timer.name}" 
                onchange="renameTimer('${timer.id}', this.value)"
-               onclick="this.select()">
+               oninput="renameTimer('${timer.id}', this.value)"
+               onclick="this.select()"
+               placeholder="اسم العداد">
         <span class="timer-type-badge">${timer.type === 'countdown' ? '⏳' : '⏱️'} ${timer.type}</span>
       </div>
       <div class="timer-display">${displayTime}</div>
@@ -882,10 +903,35 @@ function confirmCountdown() {
 }
 
 // ==================== MAIN LOOP ====================
+let isRendering = false;
+
 function tick() {
-  checkCountdowns();
+  if (isRendering) return;
+  if (currentTab !== 'timers') return;
   
-  // Update display without full re-render (performance)
+  // Check if any countdown finished
+  let countdownFinished = false;
+  timers.forEach(timer => {
+    if (timer.type === 'countdown' && timer.status === 'running') {
+      const elapsed = getElapsed(timer);
+      if (elapsed >= timer.initialDuration) {
+        timer.accumulatedElapsed = timer.initialDuration;
+        timer.lastStartedAt = null;
+        timer.status = 'stopped';
+        timer.finished = true;
+        playAlarm(timer.name, settings.ringtone);
+        countdownFinished = true;
+      }
+    }
+  });
+  
+  if (countdownFinished) {
+    saveState();
+    render();
+    return;
+  }
+  
+  // Update ONLY text content - no DOM structure or class changes
   const displays = document.querySelectorAll('.timer-card');
   timers.forEach((timer, i) => {
     if (displays[i]) {
@@ -899,12 +945,6 @@ function tick() {
       const priceEl = displays[i].querySelector('.timer-price');
       if (timeEl) timeEl.textContent = displayTime;
       if (priceEl) priceEl.textContent = formatPrice(price);
-      
-      // Update card states
-      const isRunning = timer.status === 'running';
-      const isFinished = timer.type === 'countdown' && timer.finished && timer.status === 'stopped';
-      displays[i].classList.toggle('running', isRunning);
-      displays[i].classList.toggle('finished', isFinished);
     }
   });
   
@@ -930,11 +970,17 @@ function init() {
   loadRevenue();
   render();
   
-  // Start update loop
-  intervalId = setInterval(tick, 100);
+  // Start update loop - once per second (display shows seconds)
+  intervalId = setInterval(tick, 1000);
   
-  // Save state periodically
-  setInterval(saveState, 5000);
+  // Save state every 2 seconds for power loss protection
+  setInterval(saveState, 2000);
+  
+  // Save immediately when page is closing (power off, tab close, etc.)
+  window.addEventListener('beforeunload', () => {
+    saveState();
+    saveRevenue();
+  });
   
   // Handle visibility change - recalculate on return
   document.addEventListener('visibilitychange', () => {
@@ -942,6 +988,9 @@ function init() {
       // Recalculate elapsed times when user returns
       loadState();
       render();
+    } else {
+      // Save when user switches away
+      saveState();
     }
   });
 }
