@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PS Multi Timer - عدّادات بلايستيشن</title>
+<title>PS Multi Timer</title>
 <meta name="theme-color" content="#1a1a2e">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -117,18 +117,12 @@ body {
   border: 2px solid var(--card-border);
   border-radius: 12px; padding: 16px;
   position: relative; cursor: grab;
-  transition: border-color 0.3s, box-shadow 0.3s;
 }
 .timer-card:hover { border-color: var(--accent); }
 .timer-card.running { border-color: var(--success); box-shadow: 0 0 15px rgba(46,213,115,0.2); }
 .timer-card.finished {
   border-color: var(--danger);
-  animation: blink 1s infinite;
-  background: rgba(255,71,87,0.1);
-}
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  background: rgba(255,71,87,0.15);
 }
 .timer-card.dragging { opacity: 0.5; cursor: grabbing; }
 .timer-card.drag-over { border-color: var(--warning); border-style: dashed; }
@@ -1149,12 +1143,32 @@ function confirmCountdown() {
 let isRendering = false;
 
 function tick() {
-  if (isRendering) return; // Skip tick during full render
-  if (currentTab !== 'timers') return; // Only update timer tab
+  if (isRendering) return;
+  if (currentTab !== 'timers') return;
   
-  checkCountdowns();
+  // Check if any countdown finished
+  let countdownFinished = false;
+  timers.forEach(timer => {
+    if (timer.type === 'countdown' && timer.status === 'running') {
+      const elapsed = getElapsed(timer);
+      if (elapsed >= timer.initialDuration) {
+        timer.accumulatedElapsed = timer.initialDuration;
+        timer.lastStartedAt = null;
+        timer.status = 'stopped';
+        timer.finished = true;
+        playAlarm(timer.name, settings.ringtone);
+        countdownFinished = true;
+      }
+    }
+  });
   
-  // Update ONLY text content - never change classes or structure
+  if (countdownFinished) {
+    saveState();
+    render();
+    return;
+  }
+  
+  // Update ONLY text content - no DOM structure or class changes
   const displays = document.querySelectorAll('.timer-card');
   timers.forEach((timer, i) => {
     if (displays[i]) {
@@ -1193,8 +1207,8 @@ function init() {
   loadRevenue();
   render();
   
-  // Start update loop - 500ms is smooth enough without causing flicker
-  intervalId = setInterval(tick, 500);
+  // Start update loop - once per second (display shows seconds)
+  intervalId = setInterval(tick, 1000);
   
   // Save state every 2 seconds for power loss protection
   setInterval(saveState, 2000);

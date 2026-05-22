@@ -108,18 +108,12 @@ body {
   border: 2px solid var(--card-border);
   border-radius: 12px; padding: 16px;
   position: relative; cursor: grab;
-  transition: border-color 0.3s, box-shadow 0.3s;
 }
 .timer-card:hover { border-color: var(--accent); }
 .timer-card.running { border-color: var(--success); box-shadow: 0 0 15px rgba(46,213,115,0.2); }
 .timer-card.finished {
   border-color: var(--danger);
-  animation: blink 1s infinite;
-  background: rgba(255,71,87,0.1);
-}
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  background: rgba(255,71,87,0.15);
 }
 .timer-card.dragging { opacity: 0.5; cursor: grabbing; }
 .timer-card.drag-over { border-color: var(--warning); border-style: dashed; }

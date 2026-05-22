@@ -806,12 +806,32 @@ function confirmCountdown() {
 let isRendering = false;
 
 function tick() {
-  if (isRendering) return; // Skip tick during full render
-  if (currentTab !== 'timers') return; // Only update timer tab
+  if (isRendering) return;
+  if (currentTab !== 'timers') return;
   
-  checkCountdowns();
+  // Check if any countdown finished
+  let countdownFinished = false;
+  timers.forEach(timer => {
+    if (timer.type === 'countdown' && timer.status === 'running') {
+      const elapsed = getElapsed(timer);
+      if (elapsed >= timer.initialDuration) {
+        timer.accumulatedElapsed = timer.initialDuration;
+        timer.lastStartedAt = null;
+        timer.status = 'stopped';
+        timer.finished = true;
+        playAlarm(timer.name, settings.ringtone);
+        countdownFinished = true;
+      }
+    }
+  });
   
-  // Update ONLY text content - never change classes or structure
+  if (countdownFinished) {
+    saveState();
+    render();
+    return;
+  }
+  
+  // Update ONLY text content - no DOM structure or class changes
   const displays = document.querySelectorAll('.timer-card');
   timers.forEach((timer, i) => {
     if (displays[i]) {
@@ -850,8 +870,8 @@ function init() {
   loadRevenue();
   render();
   
-  // Start update loop - 500ms is smooth enough without causing flicker
-  intervalId = setInterval(tick, 500);
+  // Start update loop - once per second (display shows seconds)
+  intervalId = setInterval(tick, 1000);
   
   // Save state every 2 seconds for power loss protection
   setInterval(saveState, 2000);
