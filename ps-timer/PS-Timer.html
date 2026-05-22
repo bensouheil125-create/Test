@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PS Multi Timer - عدّادات بلايستيشن</title>
 <meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="./manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -179,6 +180,18 @@ body {
   display: flex; gap: 4px; justify-content: center;
   flex-wrap: wrap; margin-top: 6px;
 }
+.countdown-edit {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; color: var(--text-dim); font-size: 0.78em;
+}
+.countdown-edit input {
+  width: 74px; padding: 5px 6px; border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text); text-align: center;
+}
 .delete-single {
   position: absolute; top: 8px; left: 8px;
   width: 24px; height: 24px; border-radius: 50%;
@@ -296,6 +309,57 @@ body {
   display: flex; align-items: center;
   justify-content: space-between; margin-bottom: 12px;
 }
+.revenue-panel { max-width: 1280px; margin: 0 auto; }
+.revenue-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 16px 0 10px;
+}
+.calendar-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.calendar-grid-weeks {
+  grid-template-columns: 44px repeat(7, minmax(58px, 1fr));
+  overflow-x: auto;
+}
+.cal-week-num {
+  min-height: 58px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: rgba(255,255,255,0.06);
+  color: var(--accent); font-weight: 700; font-size: 0.82em;
+}
+.cal-day { min-height: 58px; }
+.cal-empty { visibility: hidden; }
+.cal-day.selected { outline: 2px solid var(--warning); }
+.cal-day .day-amount.muted { color: var(--text-dim); opacity: 0.55; }
+.revenue-totals {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.revenue-totals .summary-row {
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 10px;
+  background: rgba(255,255,255,0.03);
+}
+.side-detail { position: sticky; bottom: 10px; }
+.month-list h4, .month-summary h4 { color: var(--accent); margin-bottom: 10px; }
+.revenue-list-row {
+  width: 100%; display: flex; justify-content: space-between;
+  padding: 9px 4px; border: none; border-bottom: 1px solid var(--card-border);
+  background: transparent; color: var(--text); cursor: pointer;
+  font: inherit; text-align: inherit;
+}
+.revenue-list-row:hover { color: var(--accent); }
+.revenue-list-row.compact { padding: 6px 4px; font-size: 0.88em; }
+.week-card {
+  border: 1px solid var(--card-border); border-radius: 10px;
+  padding: 10px; margin-bottom: 10px; background: rgba(255,255,255,0.03);
+}
+.month-total {
+  position: sticky; bottom: 0;
+  background: var(--card-bg); padding: 12px 0 4px;
+  margin-top: 8px;
+}
 /* Countdown setup modal */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 300;
@@ -327,6 +391,10 @@ body {
   .timers-grid { padding: 10px; gap: 10px; }
   .header { padding: 10px 12px; }
   .timer-display { font-size: calc(1.6em * var(--font-size-multiplier)); }
+  .revenue-totals { grid-template-columns: 1fr; }
+  .cal-nav { flex-wrap: wrap; gap: 8px; }
+  .calendar-grid-weeks { grid-template-columns: 36px repeat(7, minmax(48px, 1fr)); }
+  .cal-day, .cal-week-num { min-height: 48px; }
 }
 </style>
 </head>
@@ -358,6 +426,7 @@ let settings = {
 };
 let revenue = {}; // { "2026-05-21": 150, ... }
 let currentTab = 'timers'; // 'timers' | 'calendar'
+let revenueView = 'calendar'; // 'calendar' | 'list' | 'summary'
 let calendarMonth = new Date().getMonth();
 let calendarYear = new Date().getFullYear();
 let selectedDay = null;
@@ -391,6 +460,7 @@ function loadState() {
               t.accumulatedElapsed = t.initialDuration;
               t.status = 'stopped';
               t.lastStartedAt = null;
+              t.finished = true;
             } else {
               t.lastStartedAt = Date.now();
             }
@@ -435,7 +505,7 @@ function createTimer(type, duration) {
     initialDuration: duration || 900, // default 15min for countdown
     accumulatedElapsed: 0,
     lastStartedAt: null,
-    priceOffset: 0 // for price continuity on extend
+    priceOffset: 0
   };
   nextId++;
   timers.push(timer);
@@ -461,8 +531,7 @@ function getDisplayTime(timer) {
 }
 
 function getPrice(timer) {
-  const elapsed = getElapsed(timer);
-  return (elapsed * PRICE_PER_SECOND) + timer.priceOffset;
+  return getElapsed(timer) * PRICE_PER_SECOND;
 }
 
 function formatTime(seconds) {
@@ -478,7 +547,9 @@ function formatPrice(price) {
 
 function startTimer(timer) {
   if (timer.status === 'running') return;
+  if (timer.type === 'countdown' && getElapsed(timer) >= timer.initialDuration) return;
   timer.status = 'running';
+  timer.finished = false;
   timer.lastStartedAt = Date.now();
   saveState();
   render();
@@ -504,6 +575,7 @@ function resetTimer(timer) {
   timer.lastStartedAt = null;
   timer.accumulatedElapsed = 0;
   timer.priceOffset = 0;
+  timer.finished = false;
   if (timer.type === 'countdown') {
     timer.initialDuration = 900; // Reset to 15 min
   }
@@ -516,7 +588,7 @@ function deleteTimer(timerId) {
   if (idx >= 0) {
     const timer = timers[idx];
     const price = getPrice(timer);
-    if (price > 0 && timer.status !== 'stopped') {
+    if (price > 0) {
       addRevenue(price);
     }
     timers.splice(idx, 1);
@@ -540,47 +612,52 @@ function deleteAll() {
 
 // Extend countdown time (price continues from where it was)
 function extendTime(timer, minutes) {
+  commitRunningElapsed(timer);
   timer.initialDuration += minutes * 60;
-  // If finished, restart from where price left off
-  if (timer.status === 'stopped' && getElapsed(timer) >= timer.initialDuration - (minutes * 60)) {
-    // Already finished - don't auto start
-  }
+  timer.finished = false;
   saveState();
   render();
+}
+
+function commitRunningElapsed(timer) {
+  if (timer.status === 'running' && timer.lastStartedAt) {
+    timer.accumulatedElapsed += (Date.now() - timer.lastStartedAt) / 1000;
+    timer.lastStartedAt = Date.now();
+  }
 }
 
 // Adjust elapsed time (+ or -) with price adjustment
 function adjustTime(timer, minutes) {
   const seconds = minutes * 60;
-  const currentElapsed = getElapsed(timer);
-  
-  if (timer.status === 'running') {
-    pauseTimer(timer);
-  }
-  
-  const newElapsed = Math.max(0, timer.accumulatedElapsed + seconds);
-  const diff = newElapsed - timer.accumulatedElapsed;
+  commitRunningElapsed(timer);
+  const maxElapsed = timer.type === 'countdown' ? timer.initialDuration : Infinity;
+  const newElapsed = Math.min(maxElapsed, Math.max(0, timer.accumulatedElapsed + seconds));
   timer.accumulatedElapsed = newElapsed;
-  
-  // Adjust price offset for reductions
-  if (diff < 0) {
-    timer.priceOffset += diff * PRICE_PER_SECOND;
-    if (getPrice(timer) < 0) timer.priceOffset = -(timer.accumulatedElapsed * PRICE_PER_SECOND);
+  timer.finished = timer.type === 'countdown' && newElapsed >= timer.initialDuration;
+  if (timer.finished) {
+    timer.status = 'stopped';
+    timer.lastStartedAt = null;
   }
-  
   saveState();
   render();
 }
 
 // ==================== REVENUE ====================
+function getDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function addRevenue(amount) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getDateKey();
   revenue[today] = (revenue[today] || 0) + amount;
   saveRevenue();
 }
 
 function getTodayRevenue() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getDateKey();
   return revenue[today] || 0;
 }
 
@@ -591,7 +668,7 @@ function getWeekRevenue() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() - dayOfWeek + i);
-    const key = d.toISOString().split('T')[0];
+    const key = getDateKey(d);
     total += revenue[key] || 0;
   }
   return total;
@@ -601,10 +678,33 @@ function getMonthRevenue(year, month) {
   let total = 0;
   const days = new Date(year, month + 1, 0).getDate();
   for (let d = 1; d <= days; d++) {
-    const key = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+    const key = getMonthDateKey(year, month, d);
     total += revenue[key] || 0;
   }
   return total;
+}
+
+function getMonthDateKey(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
+function getMonthWeeks(year, month) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks = [];
+  let week = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    week.push(d);
+    const dow = new Date(year, month, d).getDay();
+    if (dow === 6 || d === daysInMonth) {
+      weeks.push(week);
+      week = [];
+    }
+  }
+  return weeks;
+}
+
+function getWeekTotal(year, month, days) {
+  return days.reduce((sum, day) => sum + (revenue[getMonthDateKey(year, month, day)] || 0), 0);
 }
 
 // ==================== AUDIO ====================
@@ -796,15 +896,24 @@ function renderTimers() {
         <button class="btn btn-ghost btn-sm" onclick="adjustTime(timers.find(t=>t.id==='${timer.id}'), 1)">+1د</button>
         <button class="btn btn-ghost btn-sm" onclick="adjustTime(timers.find(t=>t.id==='${timer.id}'), 5)">+5د</button>
       </div>
-      ${timer.type === 'countdown' ? `
-      <div class="extend-buttons">
-        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 5)">+5د</button>
-        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 15)">+15د</button>
-        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 30)">+30د</button>
-        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 60)">+1س</button>
-      </div>` : ''}
-    </div>`;
-  });
+	      ${timer.type === 'countdown' ? `
+	      <div class="extend-buttons">
+	        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 5)">+5د</button>
+	        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 15)">+15د</button>
+	        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 30)">+30د</button>
+	        <button class="btn btn-accent btn-sm" onclick="extendTime(timers.find(t=>t.id==='${timer.id}'), 60)">+1س</button>
+	      </div>
+	      <div class="countdown-edit">
+	        <label>تعديل الوقت الخارجي</label>
+	        <div>
+	          <input type="number" min="1" max="600" value="${Math.round(timer.initialDuration / 60)}"
+	                 ondragstart="event.stopPropagation()" onclick="event.stopPropagation();this.select()"
+	                 onchange="setCountdownDuration(timers.find(t=>t.id==='${timer.id}'), this.value)">
+	          <span>دقيقة</span>
+	        </div>
+	      </div>` : ''}
+	    </div>`;
+	  });
   html += '</div>';
   return html;
 }
@@ -812,6 +921,23 @@ function renderTimers() {
 function renameTimer(id, newName) {
   const timer = timers.find(t => t.id === id);
   if (timer) { timer.name = newName; saveState(); }
+}
+
+function setCountdownDuration(timer, minutes) {
+  if (!timer || timer.type !== 'countdown') return;
+  commitRunningElapsed(timer);
+  const nextDuration = Math.max(60, (parseInt(minutes, 10) || 15) * 60);
+  timer.initialDuration = nextDuration;
+  if (timer.accumulatedElapsed >= nextDuration) {
+    timer.accumulatedElapsed = nextDuration;
+    timer.status = 'stopped';
+    timer.lastStartedAt = null;
+    timer.finished = true;
+  } else {
+    timer.finished = false;
+  }
+  saveState();
+  render();
 }
 
 
@@ -825,86 +951,107 @@ function renderCalendar() {
   const dayNames = ['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
   const today = new Date();
   const monthTotal = getMonthRevenue(year, month);
-  
-  let html = `<div class="revenue-panel active">`;
-  
-  // Navigation
-  html += `<div class="cal-nav">
-    <button class="btn btn-ghost btn-sm" onclick="calendarMonth--;if(calendarMonth<0){calendarMonth=11;calendarYear--;}render()">→</button>
-    <span class="cal-month-name">${monthNames[month]} ${year}</span>
-    <button class="btn btn-ghost btn-sm" onclick="calendarMonth++;if(calendarMonth>11){calendarMonth=0;calendarYear++;}render()">←</button>
-    <button class="btn btn-accent btn-sm" onclick="calendarMonth=${today.getMonth()};calendarYear=${today.getFullYear()};render()">اليوم</button>
-  </div>`;
-  
-  // Summary
-  html += `<div class="summary-section">
-    <div class="summary-row"><span class="summary-label">إيراد اليوم</span><span class="summary-value">${formatPrice(getTodayRevenue())}</span></div>
-    <div class="summary-row"><span class="summary-label">إيراد الأسبوع</span><span class="summary-value">${formatPrice(getWeekRevenue())}</span></div>
-    <div class="summary-row"><span class="summary-label">إيراد الشهر</span><span class="summary-value">${formatPrice(monthTotal)}</span></div>
-  </div>`;
-  
-  // Calendar grid
-  html += `<div class="calendar-grid">`;
-  dayNames.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
-  
-  // Empty cells before first day
-  for (let i = 0; i < firstDay; i++) {
-    html += `<div class="cal-day" style="visibility:hidden;"></div>`;
-  }
-  
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateKey = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-    const dayRevenue = revenue[dateKey] || 0;
-    const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-    const hasRev = dayRevenue > 0;
-    
-    html += `<div class="cal-day ${isToday?'today':''} ${hasRev?'has-revenue':''}" onclick="selectDay(${d})">
-      <span>${d}</span>
-      ${hasRev ? `<span class="day-amount">${dayRevenue.toFixed(0)}</span>` : ''}
-    </div>`;
-  }
-  html += `</div>`;
-  
-  // Selected day detail
-  if (selectedDay) {
-    const dateKey = `${year}-${(month+1).toString().padStart(2,'0')}-${selectedDay.toString().padStart(2,'0')}`;
-    const dayRev = revenue[dateKey] || 0;
-    html += `<div class="day-detail">
+  const selected = getSelectedDate();
+  const selectedKey = getDateKey(selected);
+  const selectedRevenue = revenue[selectedKey] || 0;
+
+  return `<div class="revenue-panel active">
+    <div class="cal-nav">
+      <button class="btn btn-ghost btn-sm" onclick="moveMonth(-1)">→ الشهر السابق</button>
+      <span class="cal-month-name">${monthNames[month]} ${year} — ${formatPrice(monthTotal)}</span>
+      <button class="btn btn-ghost btn-sm" onclick="moveMonth(1)">الشهر التالي ←</button>
+      <button class="btn btn-accent btn-sm" onclick="goToday()">اليوم</button>
+    </div>
+
+    <div class="summary-section revenue-totals">
+      <div class="summary-row"><span class="summary-label">الدخل اليومي</span><span class="summary-value">${formatPrice(getTodayRevenue())}</span></div>
+      <div class="summary-row"><span class="summary-label">الدخل الأسبوعي</span><span class="summary-value">${formatPrice(getWeekRevenue())}</span></div>
+      <div class="summary-row"><span class="summary-label">الدخل الشهري</span><span class="summary-value">${formatPrice(monthTotal)}</span></div>
+    </div>
+
+    <div class="revenue-tabs">
+      ${['calendar','list','summary'].map(v => `<button class="nav-tab ${revenueView===v?'active':''}" onclick="switchRevenueView('${v}')">${v === 'calendar' ? '📅 تقويم' : v === 'list' ? '📋 قائمة' : '📊 ملخص'}</button>`).join('')}
+    </div>
+
+    ${revenueView === 'calendar' ? renderCalendarGrid(year, month, daysInMonth, firstDay, dayNames, today, selectedDay) : ''}
+    ${revenueView === 'list' ? renderRevenueList(year, month, daysInMonth, monthNames[month]) : ''}
+    ${revenueView === 'summary' ? renderRevenueSummary(year, month, monthNames[month]) : ''}
+
+    <aside class="day-detail side-detail">
       <div class="day-detail-nav">
         <button class="btn btn-ghost btn-sm" onclick="navigateDay(-1)">→</button>
-        <strong>${selectedDay} ${monthNames[month]} ${year}</strong>
+        <strong>${selected.getDate()} ${monthNames[selected.getMonth()]} ${selected.getFullYear()}</strong>
         <button class="btn btn-ghost btn-sm" onclick="navigateDay(1)">←</button>
       </div>
-      <div class="summary-row">
-        <span class="summary-label">إيراد هذا اليوم</span>
-        <span class="summary-value">${formatPrice(dayRev)}</span>
-      </div>
-    </div>`;
-  }
-  
-  // Weekly breakdown
-  html += `<div class="summary-section" style="margin-top:16px;">
-    <h4 style="margin-bottom:10px;color:var(--accent);">ملخص أسبوعي</h4>`;
-  
+      <div class="summary-row"><span class="summary-label">إيراد هذا اليوم</span><span class="summary-value">${formatPrice(selectedRevenue)}</span></div>
+      <div class="summary-row"><span class="summary-label">مفتاح التخزين</span><span class="summary-value">${selectedKey}</span></div>
+      <button class="btn btn-accent btn-sm" onclick="goToday()" style="margin-top:10px;">رجوع إلى اليوم</button>
+    </aside>
+  </div>`;
+}
+
+function renderCalendarGrid(year, month, daysInMonth, firstDay, dayNames, today) {
+  let html = `<div class="calendar-layout"><div class="calendar-grid calendar-grid-weeks">`;
+  html += `<div class="cal-header week-head">أسبوع</div>`;
+  dayNames.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
+
+  let currentDay = 1;
   let weekNum = 1;
-  let weekTotal = 0;
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateKey = `${year}-${(month+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-    weekTotal += revenue[dateKey] || 0;
-    const dow = new Date(year, month, d).getDay();
-    if (dow === 6 || d === daysInMonth) {
-      html += `<div class="summary-row">
-        <span class="summary-label">الأسبوع ${weekNum}</span>
-        <span class="summary-value">${formatPrice(weekTotal)}</span>
-      </div>`;
-      weekNum++;
-      weekTotal = 0;
+  while (currentDay <= daysInMonth) {
+    html += `<div class="cal-week-num">${weekNum}</div>`;
+    for (let dow = 0; dow < 7; dow++) {
+      if ((weekNum === 1 && dow < firstDay) || currentDay > daysInMonth) {
+        html += `<div class="cal-day cal-empty"></div>`;
+      } else {
+        const dateKey = getMonthDateKey(year, month, currentDay);
+        const dayRevenue = revenue[dateKey] || 0;
+        const isToday = currentDay === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+        const isSelected = currentDay === selectedDay;
+        html += `<div class="cal-day ${isToday?'today':''} ${isSelected?'selected':''} ${dayRevenue > 0?'has-revenue':''}" onclick="selectDay(${currentDay})">
+          <span>${currentDay}</span>
+          ${dayRevenue > 0 ? `<span class="day-amount">${dayRevenue.toFixed(0)} دج</span>` : `<span class="day-amount muted">0</span>`}
+        </div>`;
+        currentDay++;
+      }
     }
+    weekNum++;
   }
-  html += `</div>`;
-  
-  html += `</div>`;
+  html += `</div></div>`;
   return html;
+}
+
+function renderRevenueList(year, month, daysInMonth, monthName) {
+  let html = `<div class="summary-section month-list"><h4>${monthName} ${year}</h4>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = getMonthDateKey(year, month, d);
+    html += `<button class="revenue-list-row" onclick="selectDay(${d})">
+      <span>اليوم ${d}</span>
+      <span>${formatPrice(revenue[key] || 0)}</span>
+    </button>`;
+  }
+  html += `<div class="summary-row month-total"><span class="summary-label">مجموع الشهر</span><span class="summary-value">${formatPrice(getMonthRevenue(year, month))}</span></div></div>`;
+  return html;
+}
+
+function renderRevenueSummary(year, month, monthName) {
+  const weeks = getMonthWeeks(year, month);
+  let html = `<div class="summary-section month-summary"><h4>ملخص ${monthName} ${year}</h4>`;
+  weeks.forEach((days, idx) => {
+    html += `<div class="week-card"><div class="summary-row"><span class="summary-label">الأسبوع ${idx + 1}</span><span class="summary-value">${formatPrice(getWeekTotal(year, month, days))}</span></div>`;
+    days.forEach(day => {
+      const key = getMonthDateKey(year, month, day);
+      html += `<button class="revenue-list-row compact" onclick="selectDay(${day})"><span>اليوم ${day}</span><span>${formatPrice(revenue[key] || 0)}</span></button>`;
+    });
+    html += `</div>`;
+  });
+  html += `<div class="summary-row month-total"><span class="summary-label">المجموع الشهري الكامل</span><span class="summary-value">${formatPrice(getMonthRevenue(year, month))}</span></div></div>`;
+  return html;
+}
+
+function getSelectedDate() {
+  const day = selectedDay || new Date().getDate();
+  const max = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  return new Date(calendarYear, calendarMonth, Math.min(day, max));
 }
 
 function selectDay(day) {
@@ -913,30 +1060,46 @@ function selectDay(day) {
 }
 
 function navigateDay(dir) {
-  if (!selectedDay) selectedDay = new Date().getDate();
-  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-  selectedDay += dir;
-  if (selectedDay > daysInMonth) {
-    selectedDay = 1;
-    calendarMonth++;
-    if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
-  } else if (selectedDay < 1) {
-    calendarMonth--;
-    if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
-    selectedDay = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-  }
+  const current = getSelectedDate();
+  current.setDate(current.getDate() + dir);
+  calendarYear = current.getFullYear();
+  calendarMonth = current.getMonth();
+  selectedDay = current.getDate();
+  render();
+}
+
+function moveMonth(delta) {
+  const d = new Date(calendarYear, calendarMonth + delta, 1);
+  calendarYear = d.getFullYear();
+  calendarMonth = d.getMonth();
+  const max = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  selectedDay = Math.min(selectedDay || 1, max);
+  render();
+}
+
+function goToday() {
+  const today = new Date();
+  calendarMonth = today.getMonth();
+  calendarYear = today.getFullYear();
+  selectedDay = today.getDate();
+  render();
+}
+
+function switchRevenueView(view) {
+  revenueView = view;
   render();
 }
 
 function switchTab(tab) {
   currentTab = tab;
   if (tab === 'calendar') {
-    calendarMonth = new Date().getMonth();
-    calendarYear = new Date().getFullYear();
+    const today = new Date();
+    calendarMonth = today.getMonth();
+    calendarYear = today.getFullYear();
+    selectedDay = today.getDate();
   }
   render();
 }
-
 
 // ==================== SETTINGS PANEL ====================
 function renderSettingsPanel() {
@@ -1189,7 +1352,6 @@ function init() {
 
 // Start app
 document.addEventListener('DOMContentLoaded', init);
-
 </script>
 </body>
 </html>
