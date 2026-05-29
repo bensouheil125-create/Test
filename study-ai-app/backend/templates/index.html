@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>📚 دراستي الذكية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Tajawal',sans-serif;background:#0d0d1a;color:#fff;min-height:100vh;direction:rtl}
+.app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.navbar{background:#1a1a2e;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid #2a2a4a;position:sticky;top:0;z-index:100}
+.navbar h1{font-size:1.15rem;font-weight:700;flex:1;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 10px}
+.back-btn,.settings-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;padding:5px 8px}
+.settings-btn{color:#aaa}
+.main{flex:1;padding:20px;padding-bottom:80px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<nav class="navbar">
+  <span style="width:35px"></span>
+  <h1 id="pageTitle">📚 دراستي الذكية</h1>
+  <button class="settings-btn" onclick="showSettings()" title="الإعدادات">⚙️</button>
+</nav>
+<div class="main" id="mainContent"></div>
+</div>
+</body>
+</html>
+
+<style>
+/* منطقة الرفع */
+.upload-zone{border:2px dashed #4a4a6a;border-radius:16px;padding:50px 20px;text-align:center;
+  cursor:pointer;transition:all .3s;margin-bottom:20px;background:#1a1a2e}
+.upload-zone:hover{border-color:#6c63ff;background:#1e1e3a}
+.upload-zone.active{border-color:#6c63ff;background:#2a2a5a}
+.upload-zone .icon{font-size:3.5rem;margin-bottom:15px}
+.upload-zone p{color:#bbb;font-size:1rem}
+.upload-zone .sub{font-size:.8rem;color:#666;margin-top:10px}
+/* معلومات */
+.file-info{background:#1a1a2e;border-radius:14px;padding:18px 20px;margin-bottom:20px;border:1px solid #2a2a4a}
+.file-info h3{font-size:1rem;margin-bottom:8px;color:#6c63ff}
+.file-info p{font-size:.85rem;color:#aaa;line-height:1.7}
+/* بطاقات الخدمات */
+.section-title{font-size:.95rem;color:#999;margin-bottom:15px}
+.services{display:flex;flex-direction:column;gap:12px}
+.svc-card{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;
+  border-radius:14px;cursor:pointer;transition:all .3s;border:none;width:100%;text-align:right;
+  font-family:'Tajawal',sans-serif}
+.svc-card:hover{transform:translateX(-3px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.svc-card:active{transform:scale(.98)}
+.svc-card .info{display:flex;align-items:center;gap:14px}
+.svc-card .icon{font-size:1.4rem}
+.svc-card .title{font-size:1.05rem;font-weight:600;color:#fff}
+.svc-card .arrow{font-size:1rem;color:rgba(255,255,255,.5);background:rgba(255,255,255,.1);
+  width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.svc-audio{background:linear-gradient(135deg,#3a3a4a,#4a4a5a)}
+.svc-video{background:linear-gradient(135deg,#3a4a3a,#4a5a3a)}
+.svc-pres{background:linear-gradient(135deg,#4a4a3a,#5a5a3a)}
+.svc-flash{background:linear-gradient(135deg,#5a5a3a,#6a6a3a)}
+.svc-quiz{background:linear-gradient(135deg,#5a4a4a,#6a5a5a)}
+.svc-infog{background:linear-gradient(135deg,#4a3a4a,#5a4a5a)}
+</style>
+
+<style>
+/* النتائج */
+.result-box{background:#1a1a2e;border-radius:14px;padding:20px;border:1px solid #2a2a4a;line-height:1.9;margin-bottom:15px}
+.result-box h2{font-size:1.2rem;color:#6c63ff;margin-bottom:15px}
+/* البطاقات التعليمية */
+.flashcard{background:linear-gradient(135deg,#1e1e3a,#2a2a5a);border-radius:16px;padding:22px;
+  margin-bottom:14px;border:1px solid #3a3a6a;cursor:pointer;transition:all .3s}
+.flashcard:hover{transform:scale(1.01);border-color:#6c63ff}
+.flashcard .q{font-weight:600;color:#ffd700;margin-bottom:8px}
+.flashcard .a{font-size:.9rem;color:#ccc;padding-top:10px;border-top:1px solid #3a3a6a;display:none}
+.flashcard .a.show{display:block;animation:fadeIn .3s}
+.flashcard .hint{color:#555;font-size:.75rem;margin-top:5px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+/* الاختبار */
+.quiz-q{background:#1a1a2e;border-radius:14px;padding:20px;margin-bottom:15px;border:1px solid #2a2a4a}
+.quiz-q .qt{font-weight:600;margin-bottom:14px;line-height:1.6}
+.quiz-q .opts{display:flex;flex-direction:column;gap:8px}
+.quiz-q .opt{padding:12px 16px;border-radius:10px;background:#2a2a4a;cursor:pointer;
+  transition:all .2s;border:2px solid transparent;font-family:'Tajawal';font-size:.9rem;color:#ddd}
+.quiz-q .opt:hover{background:#3a3a6a;border-color:#6c63ff}
+.quiz-q .opt.correct{background:#1b5e20;border-color:#4caf50;color:#fff}
+.quiz-q .opt.wrong{background:#b71c1c;border-color:#f44336;color:#fff}
+/* العرض التقديمي */
+.slide{background:linear-gradient(135deg,#1e1e3a,#2a2a4a);border-radius:16px;padding:30px 25px;
+  margin-bottom:15px;border:1px solid #3a3a6a;min-height:200px}
+.slide .st{font-size:1.3rem;font-weight:700;color:#6c63ff;margin-bottom:15px;text-align:center}
+.slide .sc{font-size:.95rem;color:#ddd;line-height:1.9}
+.slide .sc ul{list-style:none;padding:0}
+.slide .sc ul li{padding:6px 0 6px 0;padding-right:18px;position:relative}
+.slide .sc ul li::before{content:'◆';position:absolute;right:0;color:#6c63ff;font-size:.7rem;top:9px}
+</style>
+
+<style>
+/* الإعدادات */
+.settings-section{background:#1a1a2e;border-radius:14px;padding:20px;margin-bottom:15px;border:1px solid #2a2a4a}
+.settings-section h3{font-size:1rem;margin-bottom:12px;color:#fff}
+.settings-section p{font-size:.85rem;color:#888;margin-bottom:10px;line-height:1.6}
+.input-group{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.input-group label{font-size:.85rem;color:#aaa}
+.input-group input,.input-group select{background:#2a2a4a;border:1px solid #3a3a6a;border-radius:10px;
+  padding:12px 16px;color:#fff;font-size:.95rem;font-family:'Tajawal';outline:none;transition:border .3s}
+.input-group input:focus,.input-group select:focus{border-color:#6c63ff}
+.input-group input::placeholder{color:#555}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge.on{background:rgba(76,175,80,.2);color:#4caf50}
+.badge.off{background:rgba(244,67,54,.2);color:#f44336}
+/* أزرار */
+.btn{background:linear-gradient(135deg,#6c63ff,#5a52e0);color:#fff;border:none;padding:12px 24px;
+  border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .3s;
+  font-family:'Tajawal';display:inline-block;text-align:center}
+.btn:hover{background:linear-gradient(135deg,#5a52e0,#4a42d0);transform:translateY(-1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-block{width:100%}
+.btn-sm{padding:8px 16px;font-size:.9rem}
+/* تحميل */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:15px}
+.spinner{width:45px;height:45px;border:4px solid #2a2a4a;border-top-color:#6c63ff;
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{color:#aaa;font-size:.95rem}
+audio{width:100%;margin:15px 0;border-radius:8px}
+/* تنسيق متجاوب */
+@media(max-width:480px){.main{padding:15px;padding-bottom:80px}.svc-card{padding:15px 16px}}
+/* التنقل بين الشرائح */
+.slide-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.slide-nav span{color:#aaa;font-size:.9rem}
+</style>
+
+<script>
+// ═══════ المتغيرات العامة ═══════
+let fileId = null;
+let fileName = '';
+let currentPage = 'upload'; // upload, studio, result, settings
+
+// ═══════ التنقل ═══════
+function setPage(page, title) {
+  currentPage = page;
+  const nav = document.querySelector('.navbar');
+  const titleEl = document.getElementById('pageTitle');
+  titleEl.textContent = title || '📚 دراستي الذكية';
+  // زر الرجوع
+  const existing = document.querySelector('.back-btn');
+  if (existing) existing.remove();
+  if (page !== 'upload') {
+    const btn = document.createElement('button');
+    btn.className = 'back-btn';
+    btn.textContent = '→';
+    btn.onclick = goBack;
+    nav.insertBefore(btn, nav.firstChild);
+  } else {
+    const sp = document.createElement('span');
+    sp.style.width = '35px';
+    sp.className = 'back-btn-placeholder';
+    const old = nav.querySelector('.back-btn-placeholder');
+    if (!old) nav.insertBefore(sp, nav.firstChild);
+  }
+}
+
+function goBack() {
+  if (currentPage === 'result') showStudio();
+  else if (currentPage === 'studio') showUpload();
+  else if (currentPage === 'settings') { if (fileId) showStudio(); else showUpload(); }
+}
+
+function showSettings() { setPage('settings', '⚙️ الإعدادات'); renderSettings(); }
+</script>
+
+<script>
+// ═══════ صفحة الرفع ═══════
+function showUpload() {
+  setPage('upload', '📚 دراستي الذكية');
+  document.getElementById('mainContent').innerHTML = `
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" accept=".pdf,.txt,.docx" style="display:none" onchange="handleFile(event)"/>
+      <div class="icon">📚</div>
+      <p>اسحب الملف هنا أو انقر للاختيار</p>
+      <p class="sub">الملفات المدعومة: PDF, TXT, DOCX (حتى 50MB)</p>
+    </div>
+    <div class="file-info">
+      <h3>📖 كيف يعمل التطبيق؟</h3>
+      <p>١. ارفع كتاباً أو ملف PDF<br/>
+         ٢. سيتم استخراج النص تلقائياً<br/>
+         ٣. اختر الخدمة (ملخص صوتي، فيديو، بطاقات...)<br/>
+         ٤. احصل على محتوى تعليمي بالعربية الفصحى</p>
+    </div>
+    <div class="file-info">
+      <h3>🤖 الذكاء الاصطناعي</h3>
+      <p>اذهب إلى ⚙️ الإعدادات لإدخال مفتاح API (OpenAI أو Gemini) لنتائج أفضل بكثير.<br/>
+         التطبيق يعمل أيضاً بدون مفتاح بخوارزميات أساسية.</p>
+    </div>`;
+  // السحب والإفلات
+  const dz = document.getElementById('dropZone');
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('active'); };
+  dz.ondragleave = e => { e.preventDefault(); dz.classList.remove('active'); };
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('active');
+    if(e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]); };
+}
+
+function handleFile(e) { if(e.target.files.length) uploadFile(e.target.files[0]); }
+
+async function uploadFile(file) {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="loading"><div class="spinner"></div><p>جاري رفع وتحليل الملف...</p></div>`;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    if (data['نجاح']) { fileId = data['معرف_الملف']; fileName = data['اسم_الملف']; showStudio(data); }
+    else { alert(data['خطأ'] || 'خطأ في الرفع'); showUpload(); }
+  } catch(e) { alert('فشل الاتصال بالخادم'); showUpload(); }
+}
+</script>
+
+<script>
+// ═══════ صفحة الاستوديو ═══════
+function showStudio(data) {
+  setPage('studio', fileName || 'الاستوديو');
+  const preview = data ? data['معاينة']||'' : '';
+  const pages = data ? (data['معلومات']?.['عدد_الصفحات']||'—') : '—';
+  const len = data ? (data['طول_النص']?.toLocaleString()||'—') : '—';
+  document.getElementById('mainContent').innerHTML = `
+    <div class="file-info">
+      <h3>📄 ${fileName}</h3>
+      <p>عدد الصفحات: ${pages} | حجم النص: ${len} حرف</p>
+      ${preview ? `<p style="margin-top:8px;font-size:.8rem;color:#666">${preview.substring(0,120)}...</p>` : ''}
+    </div>
+    <p class="section-title">توليد محتوى جديد</p>
+    <div class="services">
+      <button class="svc-card svc-audio" onclick="generate('audio')">
+        <div class="info"><span class="icon">🎙️</span><span class="title">ملخص صوتي</span></div>
+        <div class="arrow">←</div></button>
+      <button class="svc-card svc-video" onclick="generate('video')">
+        <div class="info"><span class="icon">🎬</span><span class="title">ملخص فيديو</span></div>
+        <div class="arrow">←</div></button>
+      <button class="svc-card svc-pres" onclick="generate('presentation')">
+        <div class="info"><span class="icon">🖥️</span><span class="title">عرض تقديمي</span></div>
+        <div class="arrow">←</div></button>
+      <button class="svc-card svc-flash" onclick="generate('flashcards')">
+        <div class="info"><span class="icon">🗂️</span><span class="title">بطاقات تعليمية</span></div>
+        <div class="arrow">←</div></button>
+      <button class="svc-card svc-quiz" onclick="generate('quiz')">
+        <div class="info"><span class="icon">❓</span><span class="title">اختبار</span></div>
+        <div class="arrow">←</div></button>
+      <button class="svc-card svc-infog" onclick="generate('infographic')">
+        <div class="info"><span class="icon">📊</span><span class="title">إنفوغرافيك</span></div>
+        <div class="arrow">←</div></button>
+    </div>`;
+}
+</script>
+
+<script>
+// ═══════ توليد المحتوى ═══════
+const serviceNames = {audio:'ملخص صوتي',video:'ملخص فيديو',presentation:'عرض تقديمي',
+  flashcards:'بطاقات تعليمية',quiz:'اختبار',infographic:'إنفوغرافيك'};
+
+async function generate(type) {
+  setPage('result', serviceNames[type]);
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="loading"><div class="spinner"></div><p>جاري توليد ${serviceNames[type]}...</p>
+    <p style="font-size:.8rem;color:#555">قد يستغرق بضع ثوان</p></div>`;
+  try {
+    if (type === 'audio' || type === 'video' || type === 'infographic') {
+      const res = await fetch(`/api/${type}/${fileId}`);
+      if (!res.ok) { const d = await res.json(); throw new Error(d['خطأ']||'خطأ'); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const ct = res.headers.get('content-type')||'';
+      if (type === 'audio' || (type === 'video' && ct.includes('audio'))) renderAudio(url, type==='video');
+      else if (type === 'video' && ct.includes('video')) renderVideo(url);
+      else if (type === 'infographic') renderImage(url);
+      else renderAudio(url, false);
+    } else {
+      const res = await fetch(`/api/${type}/${fileId}`);
+      const data = await res.json();
+      if (!data['نجاح']) throw new Error(data['خطأ']||'خطأ');
+      if (type === 'flashcards') renderFlashcards(data['بطاقات']);
+      else if (type === 'quiz') renderQuiz(data['اختبار']);
+      else if (type === 'presentation') renderPresentation(data['شرائح']);
+    }
+  } catch(e) {
+    main.innerHTML = `<div class="result-box" style="text-align:center">
+      <p style="color:#f44336;font-size:1.1rem">⚠️ ${e.message}</p>
+      <button class="btn" style="margin-top:15px" onclick="generate('${type}')">إعادة المحاولة</button></div>`;
+  }
+}
+</script>
+
+<script>
+// ═══════ عرض النتائج ═══════
+function renderAudio(url, isVideoFallback) {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="result-box">
+    <h2>🎙️ الملخص الصوتي</h2>
+    ${isVideoFallback ? '<p style="color:#ffa726;margin-bottom:10px">تم إنشاء ملخص صوتي. لإنشاء فيديو كامل ثبّت ffmpeg.</p>' : ''}
+    <audio controls src="${url}"></audio>
+    <a href="${url}" download="ملخص_صوتي.mp3" class="btn btn-block" style="margin-top:12px;text-decoration:none">⬇️ تحميل الملف الصوتي</a>
+  </div>`;
+}
+function renderVideo(url) {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="result-box">
+    <h2>🎬 الفيديو التعليمي</h2>
+    <video controls style="width:100%;border-radius:8px;margin-top:10px"><source src="${url}" type="video/mp4"/></video>
+    <a href="${url}" download="فيديو_تعليمي.mp4" class="btn btn-block" style="margin-top:12px;text-decoration:none">⬇️ تحميل الفيديو</a>
+  </div>`;
+}
+function renderImage(url) {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="result-box">
+    <h2>📊 الإنفوغرافيك</h2>
+    <img src="${url}" alt="إنفوغرافيك" style="width:100%;border-radius:8px;margin-top:10px"/>
+    <a href="${url}" download="إنفوغرافيك.png" class="btn btn-block" style="margin-top:12px;text-decoration:none">⬇️ تحميل الصورة</a>
+  </div>`;
+}
+</script>
+
+<script>
+// ═══════ البطاقات التعليمية ═══════
+function renderFlashcards(cards) {
+  const main = document.getElementById('mainContent');
+  let html = `<h2 style="color:#6c63ff;margin-bottom:15px">🗂️ البطاقات التعليمية (${cards.length})</h2>`;
+  cards.forEach((c, i) => {
+    html += `<div class="flashcard" onclick="this.querySelector('.a').classList.toggle('show');this.querySelector('.hint').style.display='none'">
+      <div class="q">❓ ${c['سؤال']}</div>
+      <div class="a">💡 ${c['جواب']}</div>
+      <p class="hint">انقر لإظهار الجواب</p></div>`;
+  });
+  main.innerHTML = html;
+}
+
+// ═══════ الاختبار ═══════
+function renderQuiz(questions) {
+  const main = document.getElementById('mainContent');
+  let html = `<h2 style="color:#6c63ff;margin-bottom:15px">❓ الاختبار (${questions.length} أسئلة)</h2>`;
+  questions.forEach((q, qi) => {
+    html += `<div class="quiz-q" id="qq${qi}"><div class="qt">${qi+1}. ${q['سؤال']}</div><div class="opts">`;
+    (q['الخيارات']||[]).forEach((opt, oi) => {
+      html += `<div class="opt" onclick="checkAnswer(${qi},${oi},'${opt.replace(/'/g,"\\'")}','${(q['الإجابة_الصحيحة']||'').replace(/'/g,"\\'")}')">${opt}</div>`;
+    });
+    html += `</div>`;
+    if (q['شرح']) html += `<p class="explanation" style="display:none;margin-top:10px;color:#4caf50;font-size:.85rem">✅ ${q['شرح'].substring(0,150)}</p>`;
+    html += `</div>`;
+  });
+  main.innerHTML = html;
+}
+
+function checkAnswer(qi, oi, selected, correct) {
+  const qDiv = document.getElementById('qq'+qi);
+  const opts = qDiv.querySelectorAll('.opt');
+  opts.forEach(o => {
+    o.onclick = null;
+    if (o.textContent.trim() === correct.trim()) o.classList.add('correct');
+    else if (o.textContent.trim() === selected.trim() && selected !== correct) o.classList.add('wrong');
+  });
+  const exp = qDiv.querySelector('.explanation');
+  if (exp) exp.style.display = 'block';
+}
+</script>
+
+<script>
+// ═══════ العرض التقديمي ═══════
+let slidesData = [];
+let currentSlide = 0;
+
+function renderPresentation(slides) {
+  slidesData = slides;
+  currentSlide = 0;
+  showSlide();
+}
+
+function showSlide() {
+  const main = document.getElementById('mainContent');
+  const s = slidesData[currentSlide];
+  let contentHtml = '';
+  if (s['نوع'] === 'نقاط' && Array.isArray(s['محتوى'])) {
+    contentHtml = '<ul>' + s['محتوى'].map(p => `<li>${p}</li>`).join('') + '</ul>';
+  } else {
+    contentHtml = `<p>${s['محتوى']}</p>`;
+  }
+  main.innerHTML = `
+    <h2 style="color:#6c63ff;margin-bottom:15px">🖥️ العرض التقديمي</h2>
+    <div class="slide-nav">
+      <button class="btn btn-sm" onclick="prevSlide()" ${currentSlide===0?'disabled':''}>السابق</button>
+      <span>${currentSlide+1} / ${slidesData.length}</span>
+      <button class="btn btn-sm" onclick="nextSlide()" ${currentSlide===slidesData.length-1?'disabled':''}>التالي</button>
+    </div>
+    <div class="slide">
+      <div class="st">${s['عنوان']}</div>
+      <div class="sc">${contentHtml}</div>
+    </div>`;
+}
+
+function nextSlide() { if(currentSlide < slidesData.length-1) { currentSlide++; showSlide(); } }
+function prevSlide() { if(currentSlide > 0) { currentSlide--; showSlide(); } }
+</script>
+
+<script>
+// ═══════ صفحة الإعدادات ═══════
+async function renderSettings() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="loading"><div class="spinner"></div><p>تحميل الإعدادات...</p></div>`;
+  let status = {};
+  try { const r = await fetch('/api/settings/api-key'); status = await r.json(); } catch(e) {}
+
+  main.innerHTML = `
+    <h2 style="color:#6c63ff;margin-bottom:20px">⚙️ إعدادات الذكاء الاصطناعي</h2>
+    <div class="settings-section">
+      <h3>حالة الاتصال</h3>
+      <p>OpenAI: <span class="badge ${status.openai_configured?'on':'off'}">${status.openai_configured?'مفعل ✓':'غير مفعل'}</span></p>
+      <p>Gemini: <span class="badge ${status.gemini_configured?'on':'off'}">${status.gemini_configured?'مفعل ✓':'غير مفعل'}</span></p>
+      <p style="margin-top:8px;font-size:.8rem;color:#666">المزود النشط: ${status.active_provider==='gemini'?'Google Gemini':'OpenAI'}</p>
+    </div>
+    <div class="settings-section">
+      <h3>🔑 إضافة مفتاح API</h3>
+      <p>أدخل مفتاحك لتفعيل الذكاء الاصطناعي المتقدم</p>
+      <div class="input-group">
+        <label>المزود:</label>
+        <select id="providerSelect">
+          <option value="openai">OpenAI (GPT-4o-mini)</option>
+          <option value="gemini">Google Gemini (مجاني)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>مفتاح API:</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-... أو AIza..."/>
+      </div>
+      <button class="btn btn-block" onclick="saveApiKey()">💾 حفظ المفتاح</button>
+      <p id="settingsMsg" style="margin-top:10px;font-size:.85rem"></p>
+    </div>
+    <div class="settings-section">
+      <h3>💡 ملاحظات</h3>
+      <p>• بدون مفتاح: يعمل بخوارزميات أساسية</p>
+      <p>• مع مفتاح: تلخيص ذكي، أسئلة متقدمة، بطاقات أفضل</p>
+      <p>• المفتاح يُحفظ في الجلسة فقط</p>
+      <p style="margin-top:8px;font-size:.8rem;color:#666">
+        OpenAI: platform.openai.com/api-keys<br/>
+        Gemini (مجاني): aistudio.google.com/apikey</p>
+    </div>`;
+}
+
+async function saveApiKey() {
+  const provider = document.getElementById('providerSelect').value;
+  const key = document.getElementById('apiKeyInput').value.trim();
+  const msg = document.getElementById('settingsMsg');
+  if (!key) { msg.style.color='#f44336'; msg.textContent='❌ أدخل مفتاح API'; return; }
+  try {
+    const r = await fetch('/api/settings/api-key', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({provider, key})
+    });
+    const d = await r.json();
+    if (d['نجاح']) { msg.style.color='#4caf50'; msg.textContent='✅ '+d['رسالة'];
+      document.getElementById('apiKeyInput').value=''; setTimeout(renderSettings, 1000); }
+    else { msg.style.color='#f44336'; msg.textContent='❌ '+(d['خطأ']||'فشل'); }
+  } catch(e) { msg.style.color='#f44336'; msg.textContent='❌ فشل الاتصال'; }
+}
+
+// ═══════ بدء التطبيق ═══════
+showUpload();
+</script>

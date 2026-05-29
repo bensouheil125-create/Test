@@ -1,7 +1,9 @@
 """التطبيق الرئيسي - منصة دراستي الذكية"""
 import os
 import uuid
-from flask import Flask, request, jsonify, send_file, send_from_directory
+import webbrowser
+import threading
+from flask import Flask, request, jsonify, send_file, send_from_directory, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
@@ -347,12 +349,20 @@ def delete_file(file_id):
     return jsonify({'خطأ': 'الملف غير موجود'}), 404
 
 
+@app.route('/')
+def index():
+    """الصفحة الرئيسية - الواجهة الكاملة"""
+    return render_template('index.html')
+
+
 if __name__ == '__main__':
     print("=" * 50)
-    print("  منصة دراستي الذكية")
+    print("  📚 منصة دراستي الذكية")
     print("  Arabic Study AI Platform")
     print("=" * 50)
-    print(f"  الخادم يعمل على: http://localhost:5000")
-    print(f"  الذكاء الاصطناعي: {'متاح' if is_ai_available() else 'غير مفعل - أضف مفتاح API'}")
+    print(f"  🌐 افتح في المتصفح: http://localhost:5000")
+    print(f"  🤖 الذكاء الاصطناعي: {'✅ متاح' if is_ai_available() else '❌ غير مفعل - أضف مفتاح API من الإعدادات'}")
     print("=" * 50)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # فتح المتصفح تلقائياً
+    threading.Timer(1.5, lambda: webbrowser.open('http://localhost:5000')).start()
+    app.run(debug=False, host='0.0.0.0', port=5000)
