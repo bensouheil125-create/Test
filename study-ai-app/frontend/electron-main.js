@@ -1,42 +1,101 @@
 /**
- * Electron Main Process
- * لتشغيل التطبيق على Windows 7/8/10/11
- *
- * التشغيل:
- * 1. npm run build
- * 2. npx electron .
+ * Electron Main Process - دراستي الذكية
+ * يعمل على Windows 7/8/10/11 و Linux
  */
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog, shell } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
+
+let mainWindow;
+let backendProcess;
+
+function startBackend() {
+  // محاولة تشغيل الخادم الخلفي تلقائياً
+  const backendPath = path.join(__dirname, '..', 'backend', 'app.py');
+  
+  try {
+    // البحث عن Python
+    const pythonCommands = ['python3', 'python', 'py'];
+    let pythonCmd = null;
+    
+    for (const cmd of pythonCommands) {
+      try {
+        const { execSync } = require('child_process');
+        execSync(`${cmd} --version`, { stdio: 'ignore' });
+        pythonCmd = cmd;
+        break;
+      } catch (e) {
+        continue;
+      }
+    }
+    
+    if (pythonCmd && require('fs').existsSync(backendPath)) {
+      backendProcess = spawn(pythonCmd, [backendPath], {
+        cwd: path.join(__dirname, '..', 'backend'),
+        stdio: 'ignore'
+      });
+      
+      backendProcess.on('error', (err) => {
+        console.log('لم يتم تشغيل الخادم الخلفي تلقائياً:', err.message);
+      });
+      
+      console.log('تم تشغيل الخادم الخلفي');
+    }
+  } catch (e) {
+    console.log('تنبيه: شغّل الخادم الخلفي يدوياً: python backend/app.py');
+  }
+}
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 420,
-    height: 800,
+  mainWindow = new BrowserWindow({
+    width: 450,
+    height: 850,
     minWidth: 380,
     minHeight: 700,
     title: 'دراستي الذكية',
-    icon: path.join(__dirname, 'public', 'favicon.ico'),
+    icon: path.join(__dirname, 'public', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
     },
-    backgroundColor: '#0d0d1a'
+    backgroundColor: '#0d0d1a',
+    autoHideMenuBar: true
   });
 
   // تحميل ملفات React المبنية
-  win.loadFile(path.join(__dirname, 'build', 'index.html'));
+  const buildPath = path.join(__dirname, 'build', 'index.html');
+  
+  if (require('fs').existsSync(buildPath)) {
+    mainWindow.loadFile(buildPath);
+  } else {
+    // وضع التطوير
+    mainWindow.loadURL('http://localhost:3000');
+  }
 
-  // إخفاء شريط القوائم
-  win.setMenuBarVisibility(false);
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  startBackend();
+  
+  // انتظار ثانية لبدء الخادم
+  setTimeout(createWindow, 1000);
+});
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // إيقاف الخادم الخلفي
+  if (backendProcess) {
+    backendProcess.kill();
+  }
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });
