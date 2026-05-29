@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.env
+.env
+venv/
+env/
+
+# Node
+node_modules/
+build/
+.cache/
+
+# التطبيق
+backend/uploads/*
+backend/outputs/*
+!backend/uploads/.gitkeep
+!backend/outputs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Capacitor
+android/
+ios/
+
+# Electron
+dist/
