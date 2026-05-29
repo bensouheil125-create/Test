@@ -1,0 +1,73 @@
+{
+  "name": "study-ai-app",
+  "version": "1.0.0",
+  "description": "منصة دراستي الذكية - Study AI",
+  "private": true,
+  "main": "electron-main.js",
+  "homepage": "./",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "@capacitor/cli": "^5.6.0",
+    "@capacitor/core": "^5.6.0",
+    "@capacitor/android": "^5.6.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "electron-dev": "electron .",
+    "electron-build": "npm run build && electron-builder --win",
+    "electron-build-linux": "npm run build && electron-builder --linux",
+    "cap-init": "npx cap init \"دراستي الذكية\" \"com.studyai.app\" --web-dir build",
+    "cap-add-android": "npx cap add android",
+    "cap-build-android": "npm run build && npx cap copy android",
+    "cap-open-android": "npx cap open android"
+  },
+  "build": {
+    "appId": "com.studyai.app",
+    "productName": "دراستي الذكية",
+    "files": [
+      "build/**/*",
+      "electron-main.js"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "دراستي الذكية"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "public/icon.png"
+    }
+  },
+  "proxy": "http://localhost:5000",
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  }
+}
